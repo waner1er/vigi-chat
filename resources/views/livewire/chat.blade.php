@@ -6,12 +6,11 @@
                     this.$el.scrollTop = this.$el.scrollHeight;
                 });
             });
-            this.$el.scrollTop = this.$el.scrollHeight; // Initial scroll to bottom
+            this.$el.scrollTop = this.$el.scrollHeight;
         }
     }">
         @foreach($messages as $message)
             <div class="message @if($message['user']['id'] === auth()->id()) sent @else received @endif">
-                {{-- Accédez aux propriétés comme des clés de tableau --}}
                 <strong>{{ $message['user']['name'] }}:</strong> {{ $message['body'] }}
                 @foreach($message['attachments'] as $attachment)
                     <div class="attachment">

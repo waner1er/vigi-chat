@@ -12,24 +12,20 @@ class Chat extends Component
 {
     use WithFileUploads;
 
-    // Déclarez $messages comme un tableau
     public array $messages = [];
     public $newMessage = '';
     public $fileUploads = [];
 
-    // Écouteur pour les événements broadcastés
     protected $listeners = ['echo-presence:chat,MessageSent' => 'addMessage'];
 
     public function mount()
     {
-        // Récupérez les messages, chargez les relations, et convertissez tout en tableaux plats
         $this->messages = Message::with('user', 'attachments')
             ->latest()
             ->take(50)
             ->get()
-            ->reverse() // Pour les avoir du plus ancien au plus récent
+            ->reverse() 
             ->map(function ($message) {
-                // Convertir chaque message en un tableau de données, comme broadcastWith
                 return [
                     'id' => $message->id,
                     'user' => $message->user->toArray(),
@@ -45,7 +41,7 @@ class Chat extends Component
                     })->toArray(),
                     'created_at' => $message->created_at->diffForHumans(),
                 ];
-            })->toArray(); // Convertir la collection finale en tableau
+            })->toArray(); 
     }
 
     public function addMessage($data)
@@ -59,8 +55,7 @@ class Chat extends Component
     {
         $this->validate([
             'newMessage' => 'nullable|string|max:20000',
-            'fileUploads.*' => 'nullable|file|max:1048576
-',
+            'fileUploads.*' => 'nullable|file|max:1048576',
         ]);
 
         if (empty($this->newMessage) && empty($this->fileUploads)) {
@@ -71,23 +66,39 @@ class Chat extends Component
             'body' => $this->newMessage,
         ]);
 
+        $attachments = [];
         foreach ($this->fileUploads as $file) {
             $path = $file->store('chat_attachments', 'public');
 
-            $message->attachments()->create([
+            $attachment = $message->attachments()->create([
                 'file_path' => $path,
                 'file_name' => $file->getClientOriginalName(),
                 'file_mime_type' => $file->getMimeType(),
                 'file_size' => $file->getSize(),
             ]);
+            $attachments[] = [
+                'id' => $attachment->id,
+                'file_name' => $attachment->file_name,
+                'file_mime_type' => $attachment->file_mime_type,
+                'url' => $attachment->url,
+                'file_size' => $attachment->file_size,
+            ];
         }
+
+        $this->messages[] = [
+            'id' => $message->id,
+            'user' => auth()->user()->toArray(),
+            'body' => $message->body,
+            'attachments' => $attachments,
+            'created_at' => $message->created_at->diffForHumans(),
+        ];
 
         event(new MessageSent($message));
 
         $this->newMessage = '';
         $this->fileUploads = [];
+        $this->dispatch('messageAdded');
     }
-
     public function render()
     {
         return view('livewire.chat');
